@@ -1,0 +1,119 @@
+
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <dht.h>
+dht DHT;
+//#define LDR_PIN   36
+#define DHTPIN    23
+#define water 33
+#define relay 26
+#define soil 34
+
+//our sensor is DHT11 type
+//#define DHTTYPE dht11
+//dht dht(DHTPIN, DHTTYPE);
+
+const char * ssid = "Redmi";
+const char * password = "password";
+
+String server = "http://maker.ifttt.com";
+String eventName = "temp_humid";
+String IFTTT_Key = "oJwunJVbz5MRu1bKevGa7";
+String IFTTTUrl="https://maker.ifttt.com/use/oJwunJVbz5MRu1bKevGa7";
+
+//int sensorPin = 34;   // Input pin for the Flame Sensor
+int sensorValue;  // Variable to store the value coming from the flame sensor
+int waterlevel;
+int value1;
+int value2;
+int value3;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Viola, Connected !!!");
+  pinMode(relay, OUTPUT);
+  pinMode(soil, INPUT);
+  pinMode(water,INPUT);
+  
+}
+//
+//float getLightPercentage(void)
+//{
+//  int ldrRawVal;
+//  float percentage;
+//  ldrRawVal = analogRead(LDR_PIN);    
+//  percentage = ((float)((ldrRawVal*100)/4096));
+//  return percentage;
+//}
+
+void sendDataToSheet(void)
+{
+  String url = server + "/trigger/" + eventName + "/with/key/" + IFTTT_Key + "?value1=" + String((int)value1) + "&value2="+String((int)value2) +"&value3="+String((int)value3);  
+  Serial.println(url);
+  //Start to send data to IFTTT
+  HTTPClient http;
+  Serial.print("[HTTP] begin...\n");
+  http.begin(url); //HTTP
+
+  Serial.print("[HTTP] GET...\n");
+  // start connection and send HTTP header
+  int httpCode = http.GET();
+  // httpCode will be negative on error
+  if(httpCode > 0) {
+    // HTTP header has been send and Server response header has been handled
+    Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+    // file found at server
+   // Serial.println(httpCode);
+    if(httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      Serial.println(payload);
+    }
+  } else {
+    Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  }
+  http.end();
+
+}
+
+void loop() {
+  DHT.read11(DHTPIN);
+  value1 = DHT.humidity;
+  value2 = DHT.temperature;
+  
+  //value3 = getLightPercentage(); 
+//
+//  Serial.print("Values are ");
+//  Serial.print(value1);
+//  Serial.print(' ');
+//  Serial.print(value2);
+//  Serial.print(' ');
+//  Serial.println(value3);
+//  Serial.print(' '); 
+  //Serial.println(WiFi.status());
+  sendDataToSheet();
+  sensorValue = analogRead(soil);//moisture
+  waterlevel=analogRead(water);
+  value3=sensorValue;
+  if(sensorValue>2200 & waterlevel<500)
+  {
+    digitalWrite(relay,HIGH);
+    }
+   else if(waterlevel>500)
+   {
+    digitalWrite(relay,LOW);
+    }
+  Serial.print(sensorValue);
+  //Serial.println(digitalRead(26));
+  //delay(1000);
+  Serial.println(waterlevel);
+  
+  
+  delay(10000);
+}
